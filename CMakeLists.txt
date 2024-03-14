@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
+# 功能包名
 project(claw_control)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -11,24 +12,17 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(motor_lib REQUIRED)
 
-
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-)
-
-add_executable(claw_control src/claw_control.cpp)
-target_link_libraries(claw_control motor_lib bupt_can) 
-ament_target_dependencies(claw_control rclcpp std_msgs motor_lib)
-
-target_include_directories(claw_control
-    PUBLIC
+# 编译节点
+add_executable(claw_control_node src/claw_control.cpp)
+target_include_directories(claw_control_node PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
+        $<INSTALL_INTERFACE:include>)
+target_link_libraries(claw_control_node motor_lib bupt_can) 
+ament_target_dependencies(claw_control_node rclcpp std_msgs motor_lib)
 
+# 安装节点
 install(TARGETS
-  claw_control
+  claw_control_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

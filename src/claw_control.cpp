@@ -14,29 +14,61 @@ const int32_t dropPose = 0; //松开命令转到的位置
 std::shared_ptr<Can> can_handle = std::make_shared<Can>("can0");
 DJIBoard board(1,can_handle);
 
-void topic_callback(const std_msgs::msg::String::SharedPtr msg) // SharedPtr管理动态分配的内存
+class node: public rclcpp::Node
 {
-    //输出接受到的消息
-    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "I heard: '%s'", msg->data.c_str());
-    
-    if (msg->data == "catch")
+private:
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscriber_;
+    void topic_callback(const std_msgs::msg::String::SharedPtr msg)
     {
-        std::cout << "执行catch" << std::endl; //std是C++标准库的命名空间，用std::指明它们位于此命名空间
-        board.PosCtrl(1, catchPose); //用MotorLib位置环
-    }
+        // 输出接受到的消息
+        // RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
 
-    if (msg->data == "drop")
-    {
-        std::cout << "执行drop" << std::endl;
-        board.PosCtrl(1, dropPose);
-    }
+        // 执行动作
+        if (msg->data == "catch")
+        {
+            std::cout << "执行catch" << std::endl; //std是C++标准库的命名空间，用std::指明它们位于此命名空间
+            board.PosCtrl(1, catchPose); //用MotorLib位置环
+        }
 
-    if (msg->data == "off")
-    {
-        std::cout << "motoroff" << std::endl;
-        board.MotorOff(1);
+        if (msg->data == "drop")
+        {
+            std::cout << "执行drop" << std::endl;
+            board.PosCtrl(1, dropPose);
+        }
+
+        if (msg->data == "off")
+        {
+            std::cout << "motoroff" << std::endl;
+            board.MotorOff(1);
+        }
     }
-}
+public:
+    node(std::string st) : Node(st)
+    {
+        RCLCPP_INFO(this->get_logger(), "爪夹控制节点启动");
+        subscriber_ = this->create_subscription<std_msgs::msg::String>(
+            "claw_control_topic", 10,
+            std::bind(&node::topic_callback, this, std::placeholders::_1));
+    }
+    ~node()
+    {
+        RCLCPP_INFO(this->get_logger(), "爪夹控制节点关闭");
+    }
+};
+
+class ROS_EVENT_LOOP
+{
+public:
+    ROS_EVENT_LOOP(int argc, char *argv[],std::string st)
+    {
+        rclcpp::init(argc, argv);
+        rclcpp::spin(std::make_shared<node>(st));
+    }
+    ~ROS_EVENT_LOOP()
+    {
+        rclcpp::shutdown();
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -44,15 +76,6 @@ int main(int argc, char *argv[])
     can_handle->can_start();
     board.PosCfg(1, maxPosVel);
     board.MotorOn(1);
-
-    //节点初始化
-    rclcpp::init(argc, argv);
-    auto node = rclcpp::Node::make_shared("claw_control"); //auto自动推断变量类型
-    auto subscription = node->create_subscription<std_msgs::msg::String>(
-        "claw_control_topic", 10, topic_callback); //创建订阅者
-
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-
+    ROS_EVENT_LOOP(argc, argv,"claw_control_node");
     return 0;
 }
